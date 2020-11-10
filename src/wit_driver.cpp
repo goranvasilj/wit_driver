@@ -101,7 +101,7 @@ void Parse(uint8_t *message, int length, bool raw)
                 	value = (unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
                 	if (value > 32767) value = value - 65536;
                 	imu.linear_acceleration.z = value / 32768. * 16 * 9.81;
-                	pos++;pos++; //absolute a
+///                	pos++;pos++; //absolute a
                 	value = (unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
                 	if (value > 32767) value = value - 65536;
                 	imu.angular_velocity.x = value / 32768. * 2000;
@@ -111,7 +111,7 @@ void Parse(uint8_t *message, int length, bool raw)
                 	value = (unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
                 	if (value > 32767) value = value - 65536;
                 	imu.angular_velocity.z = value / 32768. * 2000;
-                	pos++;pos++; //absolute w
+//                	pos++;pos++; //absolute w
 
                 	data.magnetic_field.x = (unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
                     data.magnetic_field.y = (unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
