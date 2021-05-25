@@ -62,7 +62,8 @@ sensor_msgs::Imu imu;
 //parse data from message to ROS meesages
 //raw = true  - reads raw data
 //raw = false - reads quaternion
-void Parse(uint8_t *message, int length, bool raw)
+//cal = true - read magnetic calibration parameters and ignores raw;
+void Parse(uint8_t *message, int length, bool raw, bool cal)
 {
 
     int pos = 0;
@@ -79,6 +80,22 @@ void Parse(uint8_t *message, int length, bool raw)
     	    int count=message[pos++];
             if (length-pos >= count + 2)
             {
+		if (cal == true)
+		{
+			double magnx,magny,magnz;
+            		//read magnetic calibration data
+                	int value = (unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
+                	if (value > 32767) value = value - 65536;
+                	magnx = value / 32768.;
+                	value = (unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
+                	if (value > 32767) value = value - 65536;
+                	magny = value / 32768.;
+                	value = (unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
+                	if (value > 32767) value = value - 65536;
+                	magnz = value / 32768.;
+			std::cout<<"magnetic calibration data "<<magnx<<" "<<magny<<" "<<magnz<<std::endl;			
+		}
+		else 
             	if (raw == true)
             	{
             		// read raw data
@@ -173,8 +190,12 @@ int main (int argc, char** argv){
 
     int refresh_rate;
     std::string address, modbus_service, write_topic, read_topic;
+    int mag_offset_x, mag_offset_y, mag_offset_z;
     nh_ns.param("address", IMU_address, 80); 
     nh_ns.param("refresh_rate", refresh_rate,100);
+    nh_ns.param("mag_offset_x", mag_offset_x,5);
+    nh_ns.param("mag_offset_y", mag_offset_y,6);
+    nh_ns.param("mag_offset_z", mag_offset_z,7);
     nh_ns.param("write_topic", write_topic, (std::string) "write_topic0");
     nh_ns.param("read_topic", read_topic, (std::string) "read_topic0");
     nh_ns.param("modbus_service", modbus_service , (std::string) "modbus_service");
@@ -204,6 +225,62 @@ int main (int argc, char** argv){
      uint8_t dataquat[20]={0x50,0x03,0x00,0x51,0x00,0x04,0x00,0x00,0x69,0x85,0x0d};
 
 
+     //command for reading magnetic calibration
+     uint8_t data_magn_cal[20]={0x50,0x03,0x00,0x0b,0x00,0x03,0x00,0x00,0x69,0x85,0x0d};
+
+     uint8_t value1,value2;
+     if (mag_offset_x>=0)
+     {
+	value1 = mag_offset_x / 256;
+	value2 = mag_offset_x % 256;
+
+     } 
+     else
+     {
+	value1 =(65536+mag_offset_x) / 256;
+	value2 =(65536+mag_offset_x) % 256;
+     }
+     //command for writing magnetic calibration
+     uint8_t data_magn_cal_write_x[20]={0x50,0x06,0x00,0x0b,value1, value2,0x00,0x00,0x69,0x85,0x0d};
+
+     if (mag_offset_y>=0)
+     {
+	value1 = mag_offset_y / 256;
+	value2 = mag_offset_y % 256;
+
+     } 
+     else
+     {
+	value1 =(65536+mag_offset_y) / 256;
+	value2 =(65536+mag_offset_y) % 256;
+     }
+
+     //command for writing magnetic calibration
+     uint8_t data_magn_cal_write_y[20]={0x50,0x06,0x00,0x0c,value1, value2,0x00,0x00,0x69,0x85,0x0d};
+
+     if (mag_offset_z>=0)
+     {
+	value1 = mag_offset_z / 256;
+	value2 = mag_offset_z % 256;
+
+     } 
+     else
+     {
+	value1 =(65536 + mag_offset_z) / 256;
+	value2 =(65536 + mag_offset_z) % 256;
+     }
+
+     //command for writing magnetic calibration
+     uint8_t data_magn_cal_write_z[20]={0x50,0x06,0x00,0x0d,value1, value2,0x00,0x00,0x69,0x85,0x0d};
+
+     //enter magnetic calibration mode 
+     uint8_t data_cal_mode[20]={0x50,0x06,0x00,0x01,0x00,0x02,0x00,0x00,0x69,0x85,0x0d};
+     //exit magnetic calibration mode 
+     uint8_t data_exit_cal[20]={0x50,0x06,0x00,0x01,0x00,0x00,0x00,0x00,0x69,0x85,0x0d};
+
+     //unlock 0x50 06 00 69 B5 88 22 A1
+     uint8_t data_unlock[20]={0x50,0x06,0x00,0x69,0xB5,0x88,0x00,0x00,0x69,0x85,0x0d};
+
     data[0]=IMU_address;
     int crc=ModRTU_CRC(data, 6);
     data[7]=crc/256;
@@ -214,6 +291,42 @@ int main (int argc, char** argv){
     dataquat[7]=crc/256;
     dataquat[6]=crc%256;
 
+    data_magn_cal[0]=IMU_address;
+    crc = ModRTU_CRC(data_magn_cal, 6);
+    data_magn_cal[7]=crc/256;
+    data_magn_cal[6]=crc%256;
+
+    data_magn_cal_write_x[0]=IMU_address;
+    crc = ModRTU_CRC(data_magn_cal_write_x, 6);
+    data_magn_cal_write_x[7]=crc/256;
+    data_magn_cal_write_x[6]=crc%256;
+
+    data_magn_cal_write_y[0]=IMU_address;
+    crc = ModRTU_CRC(data_magn_cal_write_y, 6);
+    data_magn_cal_write_y[7]=crc/256;
+    data_magn_cal_write_y[6]=crc%256;
+
+    data_magn_cal_write_z[0]=IMU_address;
+    crc = ModRTU_CRC(data_magn_cal_write_z, 6);
+    data_magn_cal_write_z[7]=crc/256;
+    data_magn_cal_write_z[6]=crc%256;
+
+    data_cal_mode[0]=IMU_address;
+    crc = ModRTU_CRC(data_cal_mode, 6);
+    data_cal_mode[7]=crc/256;
+    data_cal_mode[6]=crc%256;
+
+
+    data_exit_cal[0]=IMU_address;
+    crc = ModRTU_CRC(data_exit_cal, 6);
+    data_exit_cal[7]=crc/256;
+    data_exit_cal[6]=crc%256;
+
+    data_unlock[0]=IMU_address;
+    crc = ModRTU_CRC(data_unlock, 6);
+    data_unlock[7]=crc/256;
+    data_unlock[6]=crc%256;
+
     ros::ServiceClient client = nh.serviceClient<wit_driver::modbus_srv>(modbus_service);
 
     std_msgs::String result;
@@ -222,33 +335,67 @@ int main (int argc, char** argv){
     uint8_t data_received[50];
     int counter=0;
     bool raw=false;
+    bool first=true;
+    int set_magn=-1;
     while(ros::ok()){
 
         ros::spinOnce();
+	if (set_magn >=0)
+	{
+	        result.data = "";
+	        for (int i = 0; i < 9; i++)
+	        {
+			if (set_magn == 0) result.data = result.data + GetStringFromHexNumber(data_unlock[i]);
+			if (set_magn == 1) result.data = result.data + GetStringFromHexNumber(data_magn_cal_write_x[i]);
+			if (set_magn == 2) result.data = result.data + GetStringFromHexNumber(data_magn_cal_write_y[i]);
+			if (set_magn == 3) result.data = result.data + GetStringFromHexNumber(data_magn_cal_write_z[i]);
+			if (set_magn == 4) result.data = result.data + GetStringFromHexNumber(data_magn_cal[i]);;
+			
+	        }  
+		set_magn=set_magn+1;
+		if (set_magn > 4) set_magn = -1;
+	} else
+	if (first == true)
+	{
+	        result.data = "";
+	        for (int i = 0; i < 9; i++)
+	        {
 
-        //set message to send
-        result.data = "";
-        for (int i = 0; i < 9; i++)
-        {
-        	if (counter % 2 ==0)
-        	{
-        		result.data = result.data + GetStringFromHexNumber(data[i]);
-        		raw=true;
-        	}
-        	else
-        	{
-            	result.data = result.data + GetStringFromHexNumber(dataquat[i]);
-            	raw = false;
-        	}
-        }  
+	            	result.data = result.data + GetStringFromHexNumber(data_magn_cal[i]);
+	        }  
+
+	}
+	else
+	{
+	        //set message to send
+	        result.data = "";
+	        for (int i = 0; i < 9; i++)
+	        {
+	        	if (counter % 2 ==0)
+	        	{
+	        		result.data = result.data + GetStringFromHexNumber(data[i]);
+	        		raw=true;
+	        	}
+	        	else
+	        	{
+	            	result.data = result.data + GetStringFromHexNumber(dataquat[i]);
+	            	raw = false;
+	        	}
+	        }  
+	}
         ROS_INFO_STREAM(result);
         srv.request.req = result.data;
         //call service
         if (client.call(srv))
-        {
+        { 
           std::cout<<"response "<<  srv.response.res<<std::endl;
           int length = SplitString(srv.response.res,data1);
-          Parse(data1, length, raw);
+          Parse(data1, length, raw, first);
+	  if (first == true) 
+	  {
+	  	first=false;
+		set_magn=0;
+          }
         }
         else
         {

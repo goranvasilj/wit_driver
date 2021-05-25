@@ -7,7 +7,7 @@
   <!-- defined default address and refreshrate -->
   <arg name="refresh_rate"  default="10"/>
   <arg name="port" default="/dev/ttyUSB0"/>
-  <arg name="baudrate"  default="460800"/>
+  <arg name="baudrate"  default="9600"/>
 
 
 <!-- run node -->
@@ -15,6 +15,9 @@
     <param name="address" type="int" value="80" />
     <param name="refresh_rate" type="int" value="$(arg refresh_rate)" />
     <param name="modbus_service" type="str" value="modbus_service1" />
+    <param name="mag_offset_x" type="int" value="1" />
+    <param name="mag_offset_y" type="int" value="1" />
+    <param name="mag_offset_z" type="int" value="1" />
   </node>
 
   <node name="modbus_master_serial" pkg="wit_driver" type="modbus_master_serial" output="screen">

@@ -97,7 +97,7 @@ int main (int argc, char** argv){
     {
         ser.setPort(port);
         ser.setBaudrate(baudrate);
-        serial::Timeout to = serial::Timeout::simpleTimeout(5);
+        serial::Timeout to = serial::Timeout::simpleTimeout(30);
         ser.setTimeout(to);
         ser.open();
     }
