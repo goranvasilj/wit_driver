@@ -10,6 +10,7 @@
 #include <std_msgs/Empty.h>
 #include "wit_driver/modbus_srv.h"
 
+#include <tf/tf.h>
 int IMU_address;
 
 ros::Publisher magnetic_field_pub;
@@ -136,13 +137,31 @@ void Parse(uint8_t *message, int length, bool raw, bool cal)
                     if (data.magnetic_field.x > 32767) data.magnetic_field.x = data.magnetic_field.x - 65536;
                     if (data.magnetic_field.y > 32767) data.magnetic_field.y = data.magnetic_field.y - 65536;
                     if (data.magnetic_field.z > 32767) data.magnetic_field.z = data.magnetic_field.z - 65536;
-                	pos++; //roll
-                	pos++; //pitch
-                	pos++; //yaw
-                	pos++; //T
+              		double roll=(unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
+			double pitch=(unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
+			double yaw=(unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
+                    if (roll > 32767) roll = roll - 65536;
+                    if (pitch > 32767) pitch = pitch - 65536;
+                    if (yaw > 32767) yaw = yaw - 65536;
+			roll=roll/32768*3.14159265;
+			pitch=pitch/32768*3.14159265;
+			yaw=yaw/32768*3.14159265;
+			tf:: Quaternion rotation_rpy;
+			rotation_rpy.setRPY(roll,pitch,yaw);
+			imu.orientation.x=rotation_rpy.x();
+			imu.orientation.y=rotation_rpy.y();
+			imu.orientation.z=rotation_rpy.z();
+			imu.orientation.w=rotation_rpy.w();
+//                	pos++; //roll
+//                	pos++; //pitch
+//                	pos++; //yaw
+//                	pos++; //T
 
                     data.header.stamp = ros::Time::now();
                     magnetic_field_pub.publish(data);
+                    imu.header.stamp = ros::Time::now();
+
+	               	imu_pub.publish(imu);
             	}
             	else
             	{
@@ -159,9 +178,9 @@ void Parse(uint8_t *message, int length, bool raw, bool cal)
                 	value = (unsigned char) message[pos++] * 256 + (unsigned char) message[pos++];
                 	if (value > 32767) value = value - 65536;
                 	imu.orientation.z = value / 32768.;
-                    imu.header.stamp = ros::Time::now();
+                    //imu.header.stamp = ros::Time::now();
 
-                	imu_pub.publish(imu);
+                	//imu_pub.publish(imu);
 
             	}
             }
@@ -220,7 +239,11 @@ int main (int argc, char** argv){
     //command for magnetometer
     //    uint8_t data[20]={0x50,0x03,0x00,0x3a,0x00,0x04,0x00,0x00,0x69,0x85,0x0d};
     //command for all data
-     uint8_t data[20]={0x50,0x03,0x00,0x30,0x00,0x0d,0x00,0x00,0x69,0x85,0x0d};
+		//all data from time to magnetometer	
+     //uint8_t data[20]={0x50,0x03,0x00,0x30,0x00,0x0d,0x00,0x00,0x69,0x85,0x0d};
+		//all data from time to angles	
+     uint8_t data[20]={0x50,0x03,0x00,0x30,0x00,0x10,0x00,0x00,0x69,0x85,0x10};
+
      //command for quaternion
      uint8_t dataquat[20]={0x50,0x03,0x00,0x51,0x00,0x04,0x00,0x00,0x69,0x85,0x0d};
 
@@ -371,19 +394,19 @@ int main (int argc, char** argv){
 	        result.data = "";
 	        for (int i = 0; i < 9; i++)
 	        {
-	        	if (counter % 2 ==0)
-	        	{
+//	        	if (counter % 2 ==0)
+//	        	{
 	        		result.data = result.data + GetStringFromHexNumber(data[i]);
 	        		raw=true;
-	        	}
+	        	/*}
 	        	else
 	        	{
 	            	result.data = result.data + GetStringFromHexNumber(dataquat[i]);
 	            	raw = false;
-	        	}
+	        	}*/
 	        }  
 	}
-        ROS_INFO_STREAM(result);
+//        ROS_INFO_STREAM(result);
         srv.request.req = result.data;
         //call service
         if (client.call(srv))
@@ -394,18 +417,18 @@ int main (int argc, char** argv){
 	  if (first == true) 
 	  {
 	  	first=false;
-		set_magn=0;
+		//set_magn=0;
           }
         }
         else
         {
           ROS_ERROR("Failed to call service");
         }
-        counter++;
-       if (counter % 2 > 0)
-       {
+        //counter++;
+//       if (counter % 2 > 0)
+//       {
     	   loop_rate.sleep();
-       }
+//       }
 	
 
     }

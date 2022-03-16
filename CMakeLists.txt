@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   serial
   sensor_msgs
   std_msgs
+ tf
   message_generation
 )
 
@@ -25,7 +26,8 @@ include_directories(
 
 add_executable(wit_driver src/wit_driver.cpp)
 add_executable(modbus_master_serial src/modbus_master_serial.cpp)
-
+add_executable(wit_driver_fast src/wit_driver_fast.cpp)
+add_executable(modbus_master_serial_fast src/modbus_master_serial_fast.cpp)
 
 
 target_link_libraries(wit_driver
@@ -34,4 +36,9 @@ target_link_libraries(wit_driver
 target_link_libraries(modbus_master_serial
   ${catkin_LIBRARIES}
 )
-
+target_link_libraries(wit_driver_fast
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(modbus_master_serial_fast
+  ${catkin_LIBRARIES}
+)

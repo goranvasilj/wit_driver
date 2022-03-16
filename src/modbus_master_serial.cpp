@@ -6,6 +6,7 @@
 #include <std_msgs/String.h>
 #include <std_msgs/Empty.h>
 #include "wit_driver/modbus_srv.h"
+#include <chrono>
 #define DEFAULT_SERIAL_PORT "/dev/ttyUSB0"
 #define DEFAULT_BAUD_RATE 9600
 
@@ -36,23 +37,36 @@ std::string GetStringFromHexNumber(unsigned int number)
 int failed_count = 0;
 bool write_callback(wit_driver::modbus_srv::Request &req,
 		wit_driver::modbus_srv::Response &res){
-	ROS_INFO_STREAM("Request "<<req.req );
+//	ROS_INFO_STREAM("Request "<<req.req );
+
+std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     uint8_t data[50];
-    uint8_t data1[50];
+    uint8_t data1[100];
     int length=0;
     for (int i = 0;i < req.req.length();i += 2)
     {
         data[length++] = GetNumberFromHexString(req.req[i]) * 16 + GetNumberFromHexString(req.req[i + 1]);
     }
+
     //send message over bus
     ser.write(data, length-1);
-    
+
     //read message
    	std::string result;
-	int count = ser.read(data1, data[length-1]);
-	if (ser.available()>0 && ser.available() + count < 50)
+
+	int count = ser.read(data1, data[length-4]*2+5);
+std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+
+	ROS_INFO_STREAM("length "<<count<<" "<<data[length-4]*2+5<< " "<<ser.available());
+	if (ser.available()>0 && ser.available() + count < 100)
 	{
+		usleep(10000);
+
+		ROS_INFO_STREAM("overflow "<<ser.available());
+		int temp=ser.available();
 		ser.read(data1 + count, ser.available());
+		count=count+temp;
 	}
 
 	result = "";
@@ -72,6 +86,7 @@ bool write_callback(wit_driver::modbus_srv::Request &req,
 	{
 		failed_count = 0;
 	}
+
 	//set response
 	res.res = result;
 	return true;
@@ -89,6 +104,7 @@ int main (int argc, char** argv){
     nh_ns.param("baudrate", baudrate, DEFAULT_BAUD_RATE);
     nh_ns.param("modbus_service", modbus_service , (std::string) "modbus_service");
 
+
     //set service callback
     ros::ServiceServer service = nh.advertiseService(modbus_service, write_callback);
 
@@ -97,7 +113,7 @@ int main (int argc, char** argv){
     {
         ser.setPort(port);
         ser.setBaudrate(baudrate);
-        serial::Timeout to = serial::Timeout::simpleTimeout(30);
+        serial::Timeout to = serial::Timeout::simpleTimeout(40);
         ser.setTimeout(to);
         ser.open();
     }
